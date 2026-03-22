@@ -44,8 +44,8 @@ float3 GetInScatteredLight(
 	const float3 RayOrigin,
 	const float3 RayDir)
 {
-	const float StartHeight01 = (length(RayOrigin - Ctx.PlanetOrigin) - Ctx.PlanetRadius)
-		/ (Ctx.AtmosphereRadius - Ctx.PlanetRadius);
+	const float StartHeight01 = max(0.0, (length(RayOrigin - Ctx.PlanetOrigin) - Ctx.PlanetRadius)
+		/ (Ctx.AtmosphereRadius - Ctx.PlanetRadius));
 	const float3 RayOriginNormal = normalize(RayOrigin - Ctx.PlanetOrigin);
 
 	return GetInScatteredLight(Ctx.Textures.InScatteredLightTexture,

@@ -90,9 +90,22 @@ struct AtmosphereRenderer
 	{
 		InScatteredLightOut = ColorOut = 0;
 
+		// 如果相机在地下，将其提升到行星表面
+		float CameraToCenter = length(RayOrigin - Ctx.PlanetOrigin);
+		float3 CorrectedRayOrigin = RayOrigin;
+		if (CameraToCenter < Ctx.PlanetRadius)
+		{
+			float3 Normal = normalize(RayOrigin - Ctx.PlanetOrigin);
+			if (dot(Normal, Normal) < 0.1f) // 防止在中心处法线为零
+			{
+				Normal = float3(1, 0, 0);
+			}
+			CorrectedRayOrigin = Ctx.PlanetOrigin + Normal * Ctx.PlanetRadius;
+		}
+
 		// find atmosphere entry and exit point
 		float AtmosphereEntry, AtmosphereExit;
-		if (!RaySphere(RayOrigin, RayDir, Ctx.PlanetOrigin, Ctx.AtmosphereRadius, AtmosphereEntry, AtmosphereExit))
+		if (!RaySphere(CorrectedRayOrigin, RayDir, Ctx.PlanetOrigin, Ctx.AtmosphereRadius, AtmosphereEntry, AtmosphereExit))
 		{
 			// the view ray does not intersect the atmosphere.
 			return;
@@ -100,7 +113,7 @@ struct AtmosphereRenderer
 
 		// determine intersection with planet radius
 		float PlanetEntry, PlanetExit;
-		RaySphere(RayOrigin, RayDir, Ctx.PlanetOrigin, Ctx.PlanetRadius, PlanetEntry, PlanetExit);
+		RaySphere(CorrectedRayOrigin, RayDir, Ctx.PlanetOrigin, Ctx.PlanetRadius, PlanetEntry, PlanetExit);
 
 		float RayStart = AtmosphereEntry;
 		if (PlanetEntry <= 0 && PlanetExit > 0)
@@ -125,12 +138,12 @@ struct AtmosphereRenderer
 		if (RayEnd < RayStart)
 		{
 			// the atmosphere is occluded
-			ColorOut = 1;
+			ColorOut = 0;
 			return;
 		}
 
 		// get in-scattered light along the view ray
-		const float3 RayStartPos = RayOrigin + (RayStart + RAY_EPSILON) * RayDir;
+		const float3 RayStartPos = CorrectedRayOrigin + (RayStart + RAY_EPSILON) * RayDir;
 
 		if (RayEnd >= AtmosphereExit)
 		{
@@ -140,7 +153,7 @@ struct AtmosphereRenderer
 		else
 		{
 			// the ray hits terrain before exiting the atmosphere.
-			const float3 RayEndPos = RayOrigin + (RayEnd - 2 * RAY_EPSILON) * RayDir;
+			const float3 RayEndPos = CorrectedRayOrigin + (RayEnd - 2 * RAY_EPSILON) * RayDir;
 
 			// if we hit the planet before exiting the atmosphere,
 			// cast the ray in reverse to get the in-scattered light from that point towards the sun.
